@@ -2,7 +2,7 @@
 
 ![header](data/header.gif)
 
-This repository contains the official implementation for _Controlling GAN Generation with Deep Latent Perturbation_i
+This repository contains the official implementation for _Controlling GAN Generation with Deep Latent Perturbation_
 
 ## Getting Started
 
