@@ -1,6 +1,6 @@
 # Latent Perturbation
 
-![header](data/header.gif)
+![header](doc/header.gif)
 
 This repository contains the official implementation for _Controlling GAN Generation with Deep Latent Perturbation_
 
