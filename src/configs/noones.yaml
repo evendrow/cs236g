@@ -1,6 +1,6 @@
 log_dir: 'experiments'
 exp_name: 'noones'
-device: 'cpu'
+device: 'cuda'
 batch_size: 2048
 latent_dim: 100
 class_weight: 1
@@ -14,7 +14,7 @@ perturb_cfg:
   dropout: 0.1
 vis:
   do_vis: true
-  vis_steps: 5
+  vis_steps: 10
   vis_points: 4096
 CUDNN:
   benchmark: true
