@@ -1,5 +1,5 @@
 log_dir: 'experiments'
-exp_name: 'default'
+exp_name: 'ones'
 device: 'cpu'
 batch_size: 2048
 latent_dim: 100

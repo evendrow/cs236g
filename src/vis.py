@@ -17,10 +17,10 @@ def get_umap_embedding(images, feature_extractor):
 
 
 # generate samples from gan
-def generate_samples(sample_size, latent_dim, G, perturb=None, device='cuda'):
+def generate_samples(sample_size, latent_dim, G, perturb=None, batch_size=64, device='cuda'):
     images_list = []
     with torch.no_grad():
-        for i in range(10):
+        for i in range(sample_size//batch_size):
             noise = gen_noise(sample_size//10, latent_dim, device=device)
             _, images, _, _ = gen_images(noise, G, None, None, perturb=perturb)
             images_list.append(images)

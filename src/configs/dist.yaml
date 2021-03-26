@@ -1,5 +1,5 @@
 log_dir: 'experiments'
-exp_name: 'default'
+exp_name: 'dist'
 device: 'cpu'
 batch_size: 2048
 latent_dim: 100
@@ -21,13 +21,13 @@ CUDNN:
   deterministic: false
   enabled: true
 target:
-  - 0
   - 1
-  - 0
-  - 0
-  - 0
-  - 0
-  - 0
-  - 0
-  - 0
-  - 0
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  - 10

@@ -1,5 +1,5 @@
 log_dir: 'experiments'
-exp_name: 'default'
+exp_name: 'zeros'
 device: 'cpu'
 batch_size: 2048
 latent_dim: 100
@@ -14,15 +14,15 @@ perturb_cfg:
   dropout: 0.1
 vis:
   do_vis: true
-  vis_steps: 5
+  vis_steps: 1000
   vis_points: 4096
 CUDNN:
   benchmark: true
   deterministic: false
   enabled: true
 target:
-  - 0
   - 1
+  - 0
   - 0
   - 0
   - 0

@@ -74,6 +74,12 @@ def load_mnist_dataset():
 
     return data_loader
 
+def mnist_repeat(target, num_samples):
+    out = []
+    for i in range(10):
+        out += [i*torch.ones(int(target[i]*num_samples))]
+    out = torch.cat(out)
+    return out
 
 class MNISTClassifier(nn.Module):
     """ Uses an intermediate layer in an MNIST classifier to

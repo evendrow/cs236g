@@ -3,19 +3,33 @@ import os
 import torch
 import matplotlib.pyplot as plt
 
+import argparse
+
 from src.train import train
 from src.models import PerturbationNetwork
-from src.mnist import load_mnist_gan, load_mnist_classifier, load_mnist_dataset, MNISTClassifier, MNISTFeatureExtractor
-from src.utils import load_default_config
+from src.mnist import load_mnist_gan, load_mnist_classifier, load_mnist_dataset, mnist_repeat, MNISTClassifier, MNISTFeatureExtractor
+from src.utils import create_logger, load_default_config, load_config
 from src.vis import get_umap_embedding, generate_samples
 
+
+
 def run_experiment(cfg):
+
+    # Create experiment folder
+    if not os.path.exists(cfg["log_dir"]):
+        os.makedirs(cfg["log_dir"])
+
+    exp_dir = os.path.join(cfg["log_dir"], cfg['exp_name'])
+    if not os.path.exists(exp_dir):
+        os.makedirs(exp_dir)
+
+    logger = create_logger(exp_dir, phase='train')
+    logger.info(f'Device -> ' + str(cfg["device"]))
 
     # cudnn related setting
     torch.backends.cudnn.benchmark = cfg['CUDNN']['benchmark']
     torch.backends.cudnn.deterministic = cfg['CUDNN']['deterministic']
     torch.backends.cudnn.enabled = cfg['CUDNN']['enabled']
-
 
     # Create argument dict to feed into train method
     args = dict()
@@ -27,7 +41,7 @@ def run_experiment(cfg):
     args["disc_weight"]    = cfg["disc_weight"]
     args["iters"]          = cfg["iters"]
     args["log_steps"]      = cfg["log_steps"]
-    args["log_dir"]        = cfg["log_dir"]
+    args["log_dir"]        = exp_dir
 
     # <================== Initialize Models
 
@@ -40,24 +54,26 @@ def run_experiment(cfg):
     classifier = MNISTClassifier().to(cfg["device"])
     feature_extractor = MNISTFeatureExtractor(device=cfg["device"])
 
-    target = torch.Tensor([0, 1, 0, 0, 0, 0, 0, 0, 0, 0]).to(cfg["device"])
+    target = torch.Tensor(cfg["target"]).to(cfg["device"])
+    target = target / target.sum()
+    logger.info("Target: ", target.cpu().numpy())
 
-    # logger.info('Initialized models.')
+    logger.info(f'Initialized models.')
 
     # <================== Load Dataset
 
     data_loader = load_mnist_dataset()    
     (ims, labs) = next(iter(data_loader))
 
-    # logger.info(f'Loaded {len(dataset)} annotations.')
+    logger.info(f'Loaded annotations.')
 
 
     # <================== Visualization
 
-    if cfg["vis"]["save_dir"] != '':
-        mapping, real_embeds = get_umap_embedding(ims[:10], feature_extractor)
+    if cfg["vis"]["do_vis"]:
+        mapping, real_embeds = get_umap_embedding(ims, feature_extractor)
 
-        args["save_dir"]          = cfg["vis"]["save_dir"]
+        args["save_dir"]          = os.path.join(exp_dir, 'frames')
         args["vis_steps"]         = cfg["vis"]["vis_steps"]
         args["vis_points"]        = cfg["vis"]["vis_points"]
         args["feature_extractor"] = feature_extractor
@@ -66,37 +82,64 @@ def run_experiment(cfg):
 
     # <================== Train
 
-    losses = train(perturb_net, G, classifier, target, **args)
-
+    losses = train(perturb_net, G, classifier, target, logger, **args)
 
     # <================== Save figure and checkpoint
 
+    # Model Checkpoint
+    torch.save(perturb_net, os.path.join(exp_dir, 'model.pt'))
+
+    # Loss plot
     plt.figure(figsize=(10,6), dpi=256)
     plt.plot(losses)
     plt.xlabel('Iterations')
     plt.ylabel('Loss')
-    plt.savefig(os.path.join(cfg['log_dir'], 'loss.png'))
+    plt.savefig(os.path.join(exp_dir, 'loss.png'))
 
-    torch.save(perturb_net, 'output/model.pt')
+    
 
-
+    # Images for generated distribution
     perturb_net.eval()
     with torch.no_grad():
-        images = generate_samples(100, cfg["latent_dim"], G, perturb=perturb_net, device=cfg["device"])
+        images = generate_samples(cfg['hist_sample_size'], cfg["latent_dim"], G, batch_size=cfg['batch_size'], perturb=perturb_net, device=cfg["device"])
 
     classes = classifier(images)
     class_nums = classes.argmax(-1)
 
+    bins = list(range(10))
+
     plt.figure(figsize=(5, 5), dpi=256)
-    plt.hist(class_nums.detach().cpu().numpy())
+    plt.hist(class_nums.detach().cpu().numpy(), bins=bins, density=True)
     plt.xlabel('Class')
     plt.ylabel('Frequency')
-    plt.savefig(os.path.join(cfg['log_dir'], 'hist.png'))
+    plt.savefig(os.path.join(exp_dir, 'hist.png'))
+
+
+    # Desired distribution
+    desired_dist = mnist_repeat(target, cfg['hist_sample_size'])
+    plt.figure(figsize=(5, 5), dpi=256)
+    plt.hist(desired_dist.cpu().numpy(), bins=bins, density=True)
+    plt.xlabel('Class')
+    plt.ylabel('Frequency')
+    plt.savefig(os.path.join(exp_dir, 'desired_hist.png'))
+
+    logger.info("All done.")
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--cfg', type=str, help='cfg file path')
 
-    cfg = load_default_config()
-    print(cfg)
+    args = parser.parse_args()
+
+    cfg_file = args.cfg
+    print('Got config file', cfg_file)
+
+    if cfg_file is not None:
+        cfg = load_config(cfg_file)
+    else:
+        cfg = load_default_config()
+
+    print(cfg, end='\n\n')
 
     run_experiment(cfg)

@@ -8,10 +8,10 @@ import matplotlib.pyplot as plt
 from progress.bar import Bar
 
 from src.loss import DistributionLoss
-from src.utils import create_logger, gen_noise, gen_images, AverageMeter
+from src.utils import gen_noise, gen_images, AverageMeter
 from src.vis import umap_plot_images, plot_two_types
 
-def train(perturb_net, G, classifier, target, D=None, batch_size=64, latent_dim=100, class_weight=1, 
+def train(perturb_net, G, classifier, target, logger, D=None, batch_size=64, latent_dim=100, class_weight=1, 
           perturb_weight=1, disc_weight=1, iters=300, save_dir=None, feature_extractor=None, 
           mapping=None, real_embeds=None, vis_steps=3, vis_points=1024, log_steps=50, log_dir='', 
           device='cuda'):
@@ -23,6 +23,7 @@ def train(perturb_net, G, classifier, target, D=None, batch_size=64, latent_dim=
         G              -- generator network
         classifier     -- classification network
         target         -- target distribution (for distribution loss)
+        logger         -- logging object
 
         D              -- discriminator network
         batch size     -- size of batches used for training
@@ -69,9 +70,6 @@ def train(perturb_net, G, classifier, target, D=None, batch_size=64, latent_dim=
     vis_noise = gen_noise(25, latent_dim, device=device)
 
     # =============== Logging
-
-    logger = create_logger(log_dir, phase='train')
-    logger.info(f'Device -> ' + str(device))
 
     # Training variables
     losses = AverageMeter()

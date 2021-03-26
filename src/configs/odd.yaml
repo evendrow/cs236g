@@ -1,5 +1,5 @@
 log_dir: 'experiments'
-exp_name: 'default'
+exp_name: 'odd'
 device: 'cpu'
 batch_size: 2048
 latent_dim: 100
@@ -24,10 +24,10 @@ target:
   - 0
   - 1
   - 0
+  - 1
   - 0
+  - 1
   - 0
+  - 1
   - 0
-  - 0
-  - 0
-  - 0
-  - 0
+  - 1
