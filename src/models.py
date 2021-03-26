@@ -1,39 +1,6 @@
 import torch
 import torch.nn as nn
 
-class FeatureExtractor:
-    """ Uses an intermediate layer in an MNIST classifier to
-        perform feature extraction, especially for visualization """
-
-    def __init__(self, device='cuda'):
-        
-        self.device = device
-
-        # We add a hook to an intermediate layer to log its outputs
-        self.feat_extractor = load_mnist_classifier(device=device)
-        feat_extractor.fc.f6.register_forward_hook(self._hook)
-
-        # Outputs will be appended to this list
-        self.fc = []
-        
-    def _hook(self, module, input, output):
-        self.fc.append(output)
-        
-    def get_feats(self, images):
-        # Interpolate input image if needed
-        if images.shape[-1] != 32:
-            images = nn.functional.interpolate(ims, size=32)
-
-        images.to(self.device)
-
-        # Reset output list and log features
-        self.fc = []
-        with torch.no_grad():
-            self.feat_extractor(ims)
-            
-        return self.fc[0]
-    
-
 class PerturbationNetwork(nn.Module):
     """ Latent perturbation network """
 
@@ -47,7 +14,7 @@ class PerturbationNetwork(nn.Module):
         for i in range(num_hidden_layers):
             in_dim = self.latent_dim if i == 0 else self.hidden_size
             perturb_list += [
-                nn.Linear(in_dim, self.hidden_size)
+                nn.Linear(in_dim, self.hidden_size),
                 nn.ReLU(),
                 nn.Dropout(dropout)
             ]
@@ -59,14 +26,5 @@ class PerturbationNetwork(nn.Module):
 
     def forward(self, x):
         perturbation = self._perturbation(x)
-        x += perturbation
+        x = x + perturbation
         return x
-
-
-
-
-
-
-
-
-
