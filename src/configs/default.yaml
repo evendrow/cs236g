@@ -1,0 +1,20 @@
+log_dir: 'output'
+device: 'cpu'
+batch_size: 64
+latent_dim: 100
+class_weight: 1
+perturb_weight: 1
+disc_weight: 0
+iters: 1
+log_steps: 10
+perturb_cfg:
+  hidden_layers: 4
+  dropout: 0.1
+vis:
+  save_dir: ''
+  vis_steps: 5
+  vis_points: 30
+CUDNN:
+  benchmark: true
+  deterministic: false
+  enabled: true

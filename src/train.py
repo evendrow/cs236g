@@ -1,32 +1,20 @@
+import os
+import time
+
 import torch
 import torch.nn as nn
+import matplotlib.pyplot as plt
+
+from progress.bar import Bar
+
 from src.loss import DistributionLoss
-
-def gen_noise(bs, dim, device='cuda'):
-    return torch.randn(bs, dim).to(device)
-
-def gen_images(noise, model, disc, classifier, perturb=None):
-    if perturb is not None:
-        noise = perturb(noise)
-
-    noise = noise
-    images = model(noise.unsqueeze(-1).unsqueeze(-1))
-    
-    preds = None
-    if classifier is not None:
-        images_interp = nn.functional.interpolate(images, size=32)
-        preds = torch.exp(classifier(images_interp))
-        
-    disc_score = None
-    if disc is not None:
-        disc_score = disc(images)
-        
-    return noise, images, preds, disc_score
-
+from src.utils import create_logger, gen_noise, gen_images, AverageMeter
+from src.vis import umap_plot_images, plot_two_types
 
 def train(perturb_net, G, classifier, target, D=None, batch_size=64, latent_dim=100, class_weight=1, 
           perturb_weight=1, disc_weight=1, iters=300, save_dir=None, feature_extractor=None, 
-          mapping=None, real_embeds=None, log_steps=50, device='cuda'):
+          mapping=None, real_embeds=None, vis_steps=3, vis_points=1024, log_steps=50, log_dir='', 
+          device='cuda'):
     """
     Trains latent perturbation network with provided arguments
 
@@ -35,6 +23,7 @@ def train(perturb_net, G, classifier, target, D=None, batch_size=64, latent_dim=
         G              -- generator network
         classifier     -- classification network
         target         -- target distribution (for distribution loss)
+
         D              -- discriminator network
         batch size     -- size of batches used for training
         latent_dim     -- latent dimension of generator
@@ -43,6 +32,7 @@ def train(perturb_net, G, classifier, target, D=None, batch_size=64, latent_dim=
         disc_weight    -- weight given to distriminator loss
         iters          -- number of training iterations
         log_steps      -- frequency of loss logging
+        log_dir        -- directory for output log
         device         -- device on which to perform operations
 
         (Visualization)
@@ -50,12 +40,14 @@ def train(perturb_net, G, classifier, target, D=None, batch_size=64, latent_dim=
         feat_extractor -- feature extractor network
         mapping        -- UMAP mapping object for transforming image features
         real_embeds    -- UMAP embeddings of real images
+        vis_steps      -- frequency of saving visualization frames
+        vis_points     -- number of samples to use for visualization
 
     Returns:
         losses -- list of losses for each training iteration
     """
 
-    print("TRAIN")
+    # =============== Visualization sanity checks
     
     if not (save_dir is None and mapping is None and real_embeds is None and feature_extractor is None):
         if not (save_dir is not None and mapping is not None and real_embeds is not None and feature_extractor is not None):
@@ -65,46 +57,78 @@ def train(perturb_net, G, classifier, target, D=None, batch_size=64, latent_dim=
     if save_dir is not None and not os.path.exists(save_dir):
         os.makedirs(save_dir)
     
+    # =============== Optimizer and Losses
+
     optimizer = torch.optim.Adam(perturb_net.parameters())
     
     class_loss_fn = DistributionLoss() #nn.CrossEntropyLoss()
     perturb_loss_fn = nn.MSELoss()
     disc_loss_fn = nn.BCELoss()
     
-    # noise for visualiztion
+    # Noise for visualiztion
     vis_noise = gen_noise(25, latent_dim, device=device)
 
-    losses = []
+    # =============== Logging
+
+    logger = create_logger(log_dir, phase='train')
+    logger.info(f'Device -> ' + str(device))
+
+    # Training variables
+    losses = AverageMeter()
+    
+    timer = {
+        'forw': 0,
+        'back': 0,
+        'vis': 0
+    }
+
+    bar = Bar(f'Training:', fill='#', max=iters)
+    start = time.time()
+    summary_string = ''
+
+    loss_list = []
     for i in range(iters):
 
-        # Train one iteration
+        perturb_net.train()
         optimizer.zero_grad()
         
-        
+        # =============== Forward
+
         noise = gen_noise(batch_size, latent_dim, device=device)
-            
         noise_p, images, preds, disc_score = gen_images(noise, G, D, classifier, perturb=perturb_net)
-        
-        disc_target = torch.ones(batch_size).to(device) # 1 = real
+
+        timer['forw'] = time.time() - start
+        start = time.time()
          
+        # =============== Loss
 
-        class_loss = class_loss_fn(preds, target)
-        perturb_loss = perturb_loss_fn(noise_p, noise)
-        loss = (class_weight * class_loss) + (perturb_weight * perturb_loss)
+        loss_dict = dict()
+        loss_dict['class_l'] = class_weight * class_loss_fn(preds, target)
+        loss_dict['perturb_l'] = perturb_weight * perturb_loss_fn(noise_p, noise)
+        
+        loss = loss_dict['class_l'] + loss_dict['perturb_l']
 
-        # if D is not None:
-            # disc_loss = disc_loss_fn(disc_score, disc_target)
-            # loss += (disc_weight * disc_loss)
+        if D is not None and disc_weight != 0:
+            disc_target = torch.ones(batch_size).to(device) # 1 = real
+            loss_dict['disc_l'] = disc_weight * disc_loss_fn(disc_score, disc_target)
+            loss = loss + loss_dict['disc_l']
 
         loss.backward()
         optimizer.step()
-        
-        # Visualization
-        
-        if save_dir is not None and i % 3 == 0:
-            with torch.no_grad():
-                
-                feat_noise = gen_noise(3072, latent_dim, device=device)
+
+        losses.update(loss.item(), noise.size(0))
+        loss_list.append(loss.item())
+
+        timer['back'] = time.time() - start
+        start = time.time()
+
+        # =============== Visualization
+
+        if save_dir is not None and i % vis_steps == 0:
+            perturb_net.eval()
+
+            with torch.no_grad():    
+                feat_noise = gen_noise(vis_points, latent_dim, device=device)
                 _, images, _, _ = gen_images(feat_noise, G, D, classifier, perturb_net)
                 image_feats = feature_extractor.get_feats(images).cpu().numpy()
                 new_embeds = mapping.transform(image_feats)
@@ -116,8 +140,25 @@ def train(perturb_net, G, classifier, target, D=None, batch_size=64, latent_dim=
                 fig.savefig(filename, dpi=72)
                 plt.close(fig)
 
-        losses.append(loss.item())
-        if i % log_steps == 0:
-            print('Iter', i, '-- Loss', loss.item())
-            
-    return losses
+            timer['vis'] = time.time() - start
+            start = time.time()
+
+        # =============== Progress bar and logging
+
+
+        summary_string = f'({i + 1}/{iters}) | Total: {bar.elapsed_td} | ' \
+                         f'ETA: {bar.eta_td:} | loss: {losses.mov_avg:.4f}'
+
+        for k, v in loss_dict.items():
+            summary_string += f' | {k}: {v:.2f}'
+
+        for k,v in timer.items():
+            summary_string += f' | {k}: {v:.2f}'
+
+        bar.suffix = summary_string
+        bar.next()
+
+    bar.finish()
+    logger.info(summary_string)
+        
+    return loss_list

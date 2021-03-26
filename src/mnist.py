@@ -1,5 +1,6 @@
 import sys
 import torch
+import torch.nn as nn
 from torchvision import transforms
 from torchvision.datasets.mnist import MNIST
 
@@ -59,7 +60,7 @@ def load_mnist_dataset():
     opener.addheaders = [('User-agent', 'Mozilla/5.0')]
     urllib.request.install_opener(opener)
 
-    data_root = '~/mnist'
+    data_root = '../../../MNIST'
     data_test = MNIST(data_root,
                       train=False,
                       download=True,
@@ -73,6 +74,24 @@ def load_mnist_dataset():
 
     return data_loader
 
+
+class MNISTClassifier(nn.Module):
+    """ Uses an intermediate layer in an MNIST classifier to
+        perform feature extraction, especially for visualization """
+
+    def __init__(self):
+        super().__init__()
+        
+        self.classifier = LeNet5().eval()
+        self.classifier.load_state_dict(torch.load('../gan-vae-pretrained-pytorch/mnist_classifier/weights/lenet_epoch=12_test_acc=0.991.pth'))
+        
+    def forward(self, x):
+        # Interpolate input image if needed
+        if x.shape[-1] != 32:
+            x = nn.functional.interpolate(x, size=32)
+
+        return self.classifier(x)
+    
 
 class MNISTFeatureExtractor:
     """ Uses an intermediate layer in an MNIST classifier to
@@ -95,13 +114,13 @@ class MNISTFeatureExtractor:
     def get_feats(self, images):
         # Interpolate input image if needed
         if images.shape[-1] != 32:
-            images = nn.functional.interpolate(ims, size=32)
+            images = nn.functional.interpolate(images, size=32)
 
         images.to(self.device)
 
         # Reset output list and log features
         self.fc = []
         with torch.no_grad():
-            self.feat_extractor(ims)
+            self.feat_extractor(images)
             
         return self.fc[0]
