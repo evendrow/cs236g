@@ -16,7 +16,19 @@ Clone this repo to get the GAN models, and place it in the same directory as thi
 ```
 git clone https://github.com/csinva/gan-vae-pretrained-pytorch
 ```
+
+Optionally create a conda environment:
+```
+conda create -n gans python=3.8
+conda activate gans
+```
+
+And install requirements:
+```
+pip install -r requirements.txt
+```
+
 Now, you can generate samples from the regular and perturbed MNIST gan by simply running:
 ```
 python run.py
-``
+```
