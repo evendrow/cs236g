@@ -28,3 +28,17 @@ class PerturbationNetwork(nn.Module):
         perturbation = self._perturbation(x)
         x = x + perturbation
         return x
+
+class PerturbGenerator():
+    
+    def __init__(self, device='cuda'):
+        self.device = device
+    
+    def get_latent_size(self):
+        pass
+    
+    def gen_noise(self, batch_size):
+        pass
+    
+    def gen_sample(self, batch_size):
+        pass

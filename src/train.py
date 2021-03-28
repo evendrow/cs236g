@@ -11,7 +11,7 @@ from src.loss import DistributionLoss
 from src.utils import gen_noise, gen_images, AverageMeter
 from src.vis import umap_plot_images, plot_two_types
 
-def train(perturb_net, G, classifier, target, logger, D=None, batch_size=64, latent_dim=100, class_weight=1, 
+def train(perturb_net, G, classifier, target, logger, batch_size=64, latent_dim=100, class_weight=1, 
           perturb_weight=1, disc_weight=1, iters=300, save_dir=None, feature_extractor=None, 
           mapping=None, real_embeds=None, vis_steps=3, vis_points=1024, log_steps=50, log_dir='', 
           device='cuda'):
@@ -20,12 +20,11 @@ def train(perturb_net, G, classifier, target, logger, D=None, batch_size=64, lat
 
     Arguments:
         perturb_net    -- latent perturbation network
-        G              -- generator network
+        G              -- PerturbGenerator object
         classifier     -- classification network
         target         -- target distribution (for distribution loss)
         logger         -- logging object
 
-        D              -- discriminator network
         batch size     -- size of batches used for training
         latent_dim     -- latent dimension of generator
         class_weight   -- weight given to classification loss (distribution/fairness loss)
@@ -67,7 +66,7 @@ def train(perturb_net, G, classifier, target, logger, D=None, batch_size=64, lat
     disc_loss_fn = nn.BCELoss()
     
     # Noise for visualiztion
-    vis_noise = gen_noise(25, latent_dim, device=device)
+    vis_noise = G.gen_noise(25)
 
     # =============== Logging
 
@@ -92,8 +91,11 @@ def train(perturb_net, G, classifier, target, logger, D=None, batch_size=64, lat
         
         # =============== Forward
 
-        noise = gen_noise(batch_size, latent_dim, device=device)
-        noise_p, images, preds, disc_score = gen_images(noise, G, D, classifier, perturb=perturb_net)
+        noise = G.gen_noise(batch_size)
+        noise_p = perturb_net(noise)
+        images = G.gen_samples(noise_p)
+        preds = torch.exp(classifier(images))
+#         noise_p, images, preds, disc_score = gen_images(noise, G, D, classifier, perturb=perturb_net)
 
         timer['forw'] = time.time() - start
         start = time.time()
@@ -103,13 +105,7 @@ def train(perturb_net, G, classifier, target, logger, D=None, batch_size=64, lat
         loss_dict = dict()
         loss_dict['class_l'] = class_weight * class_loss_fn(preds, target)
         loss_dict['perturb_l'] = perturb_weight * perturb_loss_fn(noise_p, noise)
-        
         loss = loss_dict['class_l'] + loss_dict['perturb_l']
-
-        if D is not None and disc_weight != 0:
-            disc_target = torch.ones(batch_size).to(device) # 1 = real
-            loss_dict['disc_l'] = disc_weight * disc_loss_fn(disc_score, disc_target)
-            loss = loss + loss_dict['disc_l']
 
         loss.backward()
         optimizer.step()
@@ -125,15 +121,21 @@ def train(perturb_net, G, classifier, target, logger, D=None, batch_size=64, lat
         if save_dir is not None and i % vis_steps == 0:
             perturb_net.eval()
 
-            with torch.no_grad():    
-                feat_noise = gen_noise(vis_points, latent_dim, device=device)
-                _, images, _, _ = gen_images(feat_noise, G, D, classifier, perturb_net)
+            with torch.no_grad():   
+                # many samples image feature extraction
+                feat_noise = G.gen_noise(vis_points)
+                feat_noise_p = perturb_net(feat_noise)
+                images = G.gen_samples(feat_noise_p)
+                
                 image_feats = feature_extractor.get_feats(images).cpu().numpy()
                 new_embeds = mapping.transform(image_feats)
                 
-                _, images, _, _ = gen_images(vis_noise, G, D, classifier, perturb_net)
+                # constant-noise images for visualization
+                vis_noise_p = perturb_net(vis_noise)
+                images = G.gen_samples(vis_noise_p)
                 fig = plot_two_types(real_embeds, new_embeds, images.detach().cpu().numpy())
                 
+                # save to output folder
                 filename = os.path.join(save_dir, 'frame'+str(i)+'.png')
                 fig.savefig(filename, dpi=72)
                 plt.close(fig)

@@ -1,6 +1,6 @@
 log_dir: 'experiments'
 exp_name: 'default'
-device: 'cpu'
+device: 'cuda'
 batch_size: 2048
 latent_dim: 100
 class_weight: 1

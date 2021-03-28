@@ -4,6 +4,8 @@ import torch.nn as nn
 from torchvision import transforms
 from torchvision.datasets.mnist import MNIST
 
+from src.models import PerturbGenerator
+
 sys.path.append('../gan-vae-pretrained-pytorch')
 from mnist_dcgan.dcgan import Discriminator, Generator
 from mnist_classifier.lenet import LeNet5
@@ -60,7 +62,7 @@ def load_mnist_dataset():
     opener.addheaders = [('User-agent', 'Mozilla/5.0')]
     urllib.request.install_opener(opener)
 
-    data_root = '../../../MNIST'
+    data_root = '~/MNIST'
     data_test = MNIST(data_root,
                       train=False,
                       download=True,
@@ -80,6 +82,27 @@ def mnist_repeat(target, num_samples):
         out += [i*torch.ones(int(target[i]*num_samples))]
     out = torch.cat(out)
     return out
+
+
+class MNISTGenerator(PerturbGenerator):
+    
+    def __init__(self, device='cuda'):
+        super().__init__(device=device)
+        g, d = load_mnist_gan(device=device)
+        self.g = g
+        self.d = d
+        
+    def get_latent_size(self):
+        return 100
+    
+    def gen_noise(self, batch_size):
+        noise = torch.randn(batch_size, 100).to(self.device)
+        return noise
+    
+    def gen_samples(self, noise):
+        images = self.g(noise.unsqueeze(-1).unsqueeze(-1))
+        return images
+
 
 class MNISTClassifier(nn.Module):
     """ Uses an intermediate layer in an MNIST classifier to

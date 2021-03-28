@@ -21,8 +21,9 @@ def generate_samples(sample_size, latent_dim, G, perturb=None, batch_size=64, de
     images_list = []
     with torch.no_grad():
         for i in range(sample_size//batch_size):
-            noise = gen_noise(sample_size//10, latent_dim, device=device)
-            _, images, _, _ = gen_images(noise, G, None, None, perturb=perturb)
+            noise = G.gen_noise(sample_size//10)
+            noise_p = perturb(noise)
+            images = G.gen_samples(noise_p)
             images_list.append(images)
     images_list = torch.cat(images_list)
 

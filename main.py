@@ -7,7 +7,7 @@ import argparse
 
 from src.train import train
 from src.models import PerturbationNetwork
-from src.mnist import load_mnist_gan, load_mnist_classifier, load_mnist_dataset, mnist_repeat, MNISTClassifier, MNISTFeatureExtractor
+from src.mnist import load_mnist_gan, load_mnist_classifier, load_mnist_dataset, mnist_repeat, MNISTGenerator, MNISTClassifier, MNISTFeatureExtractor
 from src.utils import create_logger, load_default_config, load_config
 from src.vis import get_umap_embedding, generate_samples
 
@@ -23,8 +23,12 @@ def run_experiment(cfg):
     if not os.path.exists(exp_dir):
         os.makedirs(exp_dir)
 
+    if not torch.cuda.is_available():
+        cfg["device"] = 'cpu'
+        
     logger = create_logger(exp_dir, phase='train')
     logger.info(f'Device -> ' + str(cfg["device"]))
+    
 
     # cudnn related setting
     torch.backends.cudnn.benchmark = cfg['CUDNN']['benchmark']
@@ -50,13 +54,13 @@ def run_experiment(cfg):
                                       dropout=cfg["perturb_cfg"]["dropout"])
     perturb_net.to(device=cfg["device"])
 
-    G, D = load_mnist_gan(device=cfg["device"])
+    G = MNISTGenerator(device=cfg["device"])
     classifier = MNISTClassifier().to(cfg["device"])
     feature_extractor = MNISTFeatureExtractor(device=cfg["device"])
 
     target = torch.Tensor(cfg["target"]).to(cfg["device"])
     target = target / target.sum()
-    logger.info("Target: ", target.cpu().numpy())
+    logger.info(f"Target: {str(target.cpu().numpy())}")
 
     logger.info(f'Initialized models.')
 
@@ -64,6 +68,8 @@ def run_experiment(cfg):
 
     data_loader = load_mnist_dataset()    
     (ims, labs) = next(iter(data_loader))
+    ims = ims.to(cfg["device"])
+    labs = labs.to(cfg["device"])
 
     logger.info(f'Loaded annotations.')
 
