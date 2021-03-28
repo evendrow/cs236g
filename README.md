@@ -2,7 +2,7 @@
 
 ![header](doc/header.gif)
 
-This repository contains the official implementation for _Controlling GAN Generation with Deep Latent Perturbation_
+This repository contains the official implementation for _Controlling Generative Models with Deep Latent Perturbation_
 
 ## Getting Started
 
@@ -46,3 +46,17 @@ python main.py --cfg src/configs/ones.yaml
 ```
 
 This will create an `experiments` folder in the root directory with logging and visualization outputs generated during training. This will also generate a loss plot, desired histogram, and achieved histogram.
+
+## Examples
+
+### Generate Zeros
+![zeros](doc/zeros.gif)
+
+### Generate Ones
+![ones](doc/ones.gif)
+
+### Generate Binary
+![binary](doc/binary.gif)
+
+### Generate Evens
+![evens](doc/evens.gif)
