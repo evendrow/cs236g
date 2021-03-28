@@ -59,4 +59,4 @@ This will create an `experiments` folder in the root directory with logging and 
 ![binary](doc/binary.gif)
 
 ### Generate Evens
-![evens](doc/evens.gif)
+![evens](doc/even.gif)
