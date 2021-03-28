@@ -35,7 +35,7 @@ python run.py
 
 ## Training
 
-Train the model using the default configuration:
+Latent perturbation model training is specified with a configuration file. To traing with the default configuration, simply run:
 ```
 python main.py
 ```
@@ -45,7 +45,7 @@ Alternatively, use one of the other provided configs or create your own:
 python main.py --cfg src/configs/ones.yaml
 ```
 
-This will create an `experiments` folder in the root directory with logging and visualization outputs generated during training. This will also generate a loss plot, desired histogram, and achieved histogram.
+This will create an `experiments` folder in the root directory with logging and visualization outputs generated during training. This will also generate a loss plot, desired histogram, achieved histogram, and model checkpoint.
 
 ## Examples
 
