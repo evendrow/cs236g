@@ -1,4 +1,4 @@
-# Latent Perturbation
+# Controlling Generative Models with Deep Latent Perturbation
 
 ![header](doc/header.gif)
 
