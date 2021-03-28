@@ -28,11 +28,6 @@ And install requirements:
 pip install -r requirements.txt
 ```
 
-Now, you can generate samples from the regular and perturbed MNIST gan by simply running:
-```
-python run.py
-```
-
 ## Training
 
 Latent perturbation model training is specified with a configuration file. To traing with the default configuration, simply run:
